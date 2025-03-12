@@ -49,27 +49,31 @@ class MainActivity : AppCompatActivity() {
         val defList = findViewById<ListView>(R.id.dynamic_def_list);
         defList.setOnItemClickListener { _, _, index, _ ->
             val selectedDef = dataDefList[index]
-            val correctDef = wordDefinition[0].definition
+            val correctWordDef = wordDefinition.find { it.word == findViewById<TextView>(R.id.word).text.toString() }
 
-            if (selectedDef == correctDef) {
-                totalCorrect++
-                streak++
-                score += streak
-                wordDefinition[0].streak++
-                if (streak > longestStreak) {
-                    longestStreak = streak
+            if (correctWordDef != null) {
+                if (selectedDef == correctWordDef.definition) {
+                    totalCorrect++
+                    streak++
+                    score += streak
+                    correctWordDef.streak++
+
+                    if (streak > longestStreak) {
+                        longestStreak = streak
+                    }
+                } else {
+                    correctWordDef.streak = 0
+                    totalWrong++
+                    streak = 0
                 }
-            } else {
-                wordDefinition[0].streak = 0
-                totalWrong++
-                streak = 0
 
+                saveWordsOnDisk()
+                pickNewWordAndLoadDataList()
+                myAdapter.notifyDataSetChanged()
+
+
+                findViewById<TextView>(R.id.main_score_text).text = "Score: $score"
             }
-
-
-            saveWordsOnDisk();
-            pickNewWordAndLoadDataList()
-            myAdapter.notifyDataSetChanged()
         };
     }
 
@@ -144,11 +148,11 @@ class MainActivity : AppCompatActivity() {
         }
 
         val filteredWords = wordDefinition.filter { it.streak < 2 }
-        val freqList =
-            if (filteredWords.isNotEmpty())
-                filteredWords.toMutableList()
-            else
-                wordDefinition.toMutableList()
+        val freqList = if (filteredWords.isNotEmpty()) {
+            filteredWords.toMutableList()
+        } else {
+            wordDefinition.toMutableList()
+        }.shuffled().toMutableList()
 
         freqList.shuffle()
 

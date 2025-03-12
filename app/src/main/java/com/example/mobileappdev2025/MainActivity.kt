@@ -28,6 +28,8 @@ class MainActivity : AppCompatActivity() {
     private var score : Int = 1;
     private var totalCorrect : Int = 2;
     private var totalWrong : Int = 3;
+    private var streak: Int = 4;
+    private var longestStreak: Int = 5;
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,6 +69,8 @@ class MainActivity : AppCompatActivity() {
 
             wordDefinition.add(WordDefinition(word, def))
 
+
+
             pickNewWordAndLoadDataList()
             myAdapter.notifyDataSetChanged()
         }
@@ -102,17 +106,46 @@ class MainActivity : AppCompatActivity() {
 
     private fun pickNewWordAndLoadDataList()
     {
-        wordDefinition.shuffle();
-
-        dataDefList.clear();
-
-        for(wd in wordDefinition){
-            dataDefList.add(wd.definition);
+        if (wordDefinition.isEmpty()) {
+            Log.e("ERROR", "def list empty")
+            return
         }
 
-        findViewById<TextView>(R.id.word).text = wordDefinition[0].word;
+        wordDefinition.shuffle()
 
-        dataDefList.shuffle();
+        dataDefList.clear()
+
+
+        val correctWord = wordDefinition[0].word
+        val correctDefinition = wordDefinition[0].definition
+
+        dataDefList.add(correctDefinition)
+
+
+        val incorrectDefinitions = wordDefinition
+            .filter { it.definition != correctDefinition }
+            .map { it.definition }
+            .shuffled()
+
+        // Add only three incorrect answers (or as many as possible)
+        dataDefList.addAll(incorrectDefinitions.take(3))
+
+
+        while (dataDefList.size < 4) {
+            dataDefList.add("definition")
+        }
+
+        dataDefList.shuffle()
+
+
+        findViewById<TextView>(R.id.word).text = correctWord
+
+
+        if (::myAdapter.isInitialized) {
+            myAdapter.notifyDataSetChanged()
+        } else {
+            Log.e("ERROR", "adapapter not working")
+        }
     }
 
     private fun setupList()

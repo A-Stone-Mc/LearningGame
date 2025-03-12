@@ -25,11 +25,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var myAdapter : ArrayAdapter<String>; // connect from data to gui
     private var dataDefList = ArrayList<String>(); // data
     private var wordDefinition = mutableListOf<WordDefinition>();
-    private var score : Int = 1;
-    private var totalCorrect : Int = 2;
-    private var totalWrong : Int = 3;
-    private var streak: Int = 4;
-    private var longestStreak: Int = 5;
+    private var score : Int = 0;
+    private var totalCorrect : Int = 0;
+    private var totalWrong : Int = 0;
+    private var streak: Int = 0;
+    private var longestStreak: Int = 0;
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,8 +48,23 @@ class MainActivity : AppCompatActivity() {
 
         val defList = findViewById<ListView>(R.id.dynamic_def_list);
         defList.setOnItemClickListener { _, _, index, _ ->
-            pickNewWordAndLoadDataList();
-            myAdapter.notifyDataSetChanged();
+            val selectedDef = dataDefList[index]
+            val correctDef = wordDefinition[0].definition
+
+            if (selectedDef == correctDef) {
+                totalCorrect++
+                streak++
+                score += streak
+                if (streak > longestStreak) {
+                    longestStreak = streak
+                }
+            } else {
+                totalWrong++
+                streak = 0
+            }
+
+            pickNewWordAndLoadDataList()
+            myAdapter.notifyDataSetChanged()
         };
     }
 
@@ -68,6 +83,10 @@ class MainActivity : AppCompatActivity() {
                 return
 
             wordDefinition.add(WordDefinition(word, def))
+
+
+            val file = File(applicationContext.filesDir, "user_data.csv")
+            file.appendText("$word|$def\n")
 
 
 
@@ -140,6 +159,8 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<TextView>(R.id.word).text = correctWord
 
+        findViewById<TextView>(R.id.main_score_text).text = "Score: $score"
+
 
         if (::myAdapter.isInitialized) {
             myAdapter.notifyDataSetChanged()
@@ -163,6 +184,8 @@ class MainActivity : AppCompatActivity() {
         myIntent.putExtra("score", score.toString());
         myIntent.putExtra("totalCorrect", totalCorrect.toString());
         myIntent.putExtra("totalWrong", totalWrong.toString());
+        myIntent.putExtra("streak", streak.toString())
+        myIntent.putExtra("longestStreak", longestStreak.toString())
         startActivity(myIntent)
     }
 

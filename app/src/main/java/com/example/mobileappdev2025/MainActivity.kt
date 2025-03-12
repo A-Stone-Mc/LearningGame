@@ -18,7 +18,7 @@ import java.io.FileInputStream
 import java.util.Random
 import java.util.Scanner
 
-data class WordDefinition(val word: String, val definition: String);
+data class WordDefinition(val word: String, val definition: String, var streak: Int = 0);
 
 class MainActivity : AppCompatActivity() {
     private val ADD_WORD_CODE = 1234; // 1-65535
@@ -55,14 +55,19 @@ class MainActivity : AppCompatActivity() {
                 totalCorrect++
                 streak++
                 score += streak
+                wordDefinition[0].streak++
                 if (streak > longestStreak) {
                     longestStreak = streak
                 }
             } else {
+                wordDefinition[0].streak = 0
                 totalWrong++
                 streak = 0
+
             }
 
+
+            saveWordsOnDisk();
             pickNewWordAndLoadDataList()
             myAdapter.notifyDataSetChanged()
         };
@@ -83,8 +88,6 @@ class MainActivity : AppCompatActivity() {
                 return
 
             wordDefinition.add(WordDefinition(word, def))
-
-
             val file = File(applicationContext.filesDir, "user_data.csv")
             file.appendText("$word|$def\n")
 
@@ -107,19 +110,29 @@ class MainActivity : AppCompatActivity() {
             while(scanner.hasNextLine()){
                 val line = scanner.nextLine()
                 val wd = line.split("|")
-                wordDefinition.add(WordDefinition(wd[0], wd[1]))
+                val streak = if (wd.size > 2) wd[2].toInt() else 0
+                wordDefinition.add(WordDefinition(wd[0], wd[1], streak))
             }
         } else { // default data
 
             file.createNewFile()
 
-            val reader = Scanner(resources.openRawResource(R.raw.default_words))
+            val reader = Scanner(resources.openRawResource(R.raw.original_words))
             while(reader.hasNextLine()){
                 val line = reader.nextLine()
                 val wd = line.split("|")
-                wordDefinition.add(WordDefinition(wd[0], wd[1]))
-                file.appendText("${wd[0]}|${wd[1]}\n")
+                wordDefinition.add(WordDefinition(wd[0], wd[1], 0))
+                file.appendText("${wd[0]}|${wd[1]}|0\n")
             }
+        }
+    }
+
+    private fun saveWordsOnDisk(){
+        val file = File(applicationContext.filesDir, "user_data.csv")
+        file.writeText("") // clear file
+
+        for (wordDef in wordDefinition) {
+            file.appendText("${wordDef.word}|${wordDef.definition}|${wordDef.streak}\n")
         }
     }
 
@@ -130,13 +143,20 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        wordDefinition.shuffle()
+        val filteredWords = wordDefinition.filter { it.streak < 2 }
+        val freqList =
+            if (filteredWords.isNotEmpty())
+                filteredWords.toMutableList()
+            else
+                wordDefinition.toMutableList()
+
+        freqList.shuffle()
 
         dataDefList.clear()
 
 
-        val correctWord = wordDefinition[0].word
-        val correctDefinition = wordDefinition[0].definition
+        val correctWord = freqList[0].word
+        val correctDefinition = freqList[0].definition
 
         dataDefList.add(correctDefinition)
 
@@ -146,7 +166,7 @@ class MainActivity : AppCompatActivity() {
             .map { it.definition }
             .shuffled()
 
-        // Add only three incorrect answers (or as many as possible)
+        //add 3 incorrect
         dataDefList.addAll(incorrectDefinitions.take(3))
 
 

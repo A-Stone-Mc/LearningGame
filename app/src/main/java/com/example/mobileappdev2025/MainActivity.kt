@@ -5,8 +5,6 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.ArrayAdapter
-import android.widget.Button
-import android.widget.ImageView
 import android.widget.ListView
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
@@ -15,7 +13,6 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import java.io.File
 import java.io.FileInputStream
-import java.util.Random
 import java.util.Scanner
 
 data class WordDefinition(val word: String, val definition: String, var streak: Int = 0);
@@ -30,6 +27,7 @@ class MainActivity : AppCompatActivity() {
     private var totalWrong : Int = 0;
     private var streak: Int = 0;
     private var longestStreak: Int = 0;
+    private var lastWord: String? = null;
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,6 +39,7 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
+        loadUserStats()
         loadWordsFromDisk()
 
         pickNewWordAndLoadDataList();
@@ -66,6 +65,7 @@ class MainActivity : AppCompatActivity() {
                     totalWrong++
                     streak = 0
                 }
+
 
                 saveWordsOnDisk()
                 pickNewWordAndLoadDataList()
@@ -131,9 +131,43 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun loadUserStats() {
+        val file = File(applicationContext.filesDir, "user_stats.csv")
+
+        if (file.exists()) {
+            val readResult = FileInputStream(file)
+            val scanner = Scanner(readResult)
+
+            if (scanner.hasNextLine()) {
+                val stats = scanner.nextLine().split("|")
+
+                if (stats.size == 5) {
+                    score = stats[0].toIntOrNull() ?: 0
+                    totalCorrect = stats[1].toIntOrNull() ?: 0
+                    totalWrong = stats[2].toIntOrNull() ?: 0
+                    streak = stats[3].toIntOrNull() ?: 0
+                    longestStreak = stats[4].toIntOrNull() ?: 0
+                }
+                Log.d("DEBUG", "Stats loaded on startup: Score=$score, Correct=$totalCorrect, Wrong=$totalWrong, Streak=$streak, LongestStreak=$longestStreak")
+            }
+
+            scanner.close()
+        } else {
+            file.createNewFile()
+            file.appendText("0|0|0|0|0\n") // Default stats
+            Log.d("DEBUG", "Created new stats file with default values.")
+        }
+    }
+
+    private fun saveUserStats() {
+        val file = File(applicationContext.filesDir, "user_stats.csv")
+        file.writeText("$score|$totalCorrect|$totalWrong|$streak|$longestStreak\n")
+        Log.d("DEBUG", "Stats saved: Score=$score, Correct=$totalCorrect, Wrong=$totalWrong, Streak=$streak, LongestStreak=$longestStreak")
+    }
+
     private fun saveWordsOnDisk(){
         val file = File(applicationContext.filesDir, "user_data.csv")
-        file.writeText("") // clear file
+        file.writeText("") // clear
 
         for (wordDef in wordDefinition) {
             file.appendText("${wordDef.word}|${wordDef.definition}|${wordDef.streak}\n")
@@ -143,36 +177,49 @@ class MainActivity : AppCompatActivity() {
     private fun pickNewWordAndLoadDataList()
     {
         if (wordDefinition.isEmpty()) {
-            Log.e("ERROR", "def list empty")
+            Log.e("DEBUG", "list empty")
             return
         }
 
-        val filteredWords = wordDefinition.filter { it.streak < 2 }
-        val freqList = if (filteredWords.isNotEmpty()) {
-            filteredWords.toMutableList()
-        } else {
-            wordDefinition.toMutableList()
-        }.shuffled().toMutableList()
+        val highPrior = wordDefinition.filter { it.streak < 2 }
+        val lowPrior = wordDefinition.filter { it.streak >= 2 }
 
-        freqList.shuffle()
+        val newList = mutableListOf<WordDefinition>()
+
+
+        newList.addAll(highPrior)
+        newList.addAll(highPrior)
+        newList.addAll(highPrior)
+
+
+        newList.addAll(lowPrior.shuffled().take(lowPrior.size / 3))
+
+        if (newList.isEmpty()) {
+            newList.addAll(wordDefinition)
+        }
+
+
+        var selectedWord: WordDefinition
+        do {
+            selectedWord = newList.random()
+        } while (selectedWord.word == lastWord && wordDefinition.size > 1)
+
+        lastWord = selectedWord.word
 
         dataDefList.clear()
 
-
-        val correctWord = freqList[0].word
-        val correctDefinition = freqList[0].definition
+        val correctWord = selectedWord.word
+        val correctDefinition = selectedWord.definition
 
         dataDefList.add(correctDefinition)
-
 
         val incorrectDefinitions = wordDefinition
             .filter { it.definition != correctDefinition }
             .map { it.definition }
             .shuffled()
 
-        //add 3 incorrect
+        // Add 3 incorrect
         dataDefList.addAll(incorrectDefinitions.take(3))
-
 
         while (dataDefList.size < 4) {
             dataDefList.add("definition")
@@ -180,16 +227,13 @@ class MainActivity : AppCompatActivity() {
 
         dataDefList.shuffle()
 
-
         findViewById<TextView>(R.id.word).text = correctWord
-
         findViewById<TextView>(R.id.main_score_text).text = "Score: $score"
-
 
         if (::myAdapter.isInitialized) {
             myAdapter.notifyDataSetChanged()
         } else {
-            Log.e("ERROR", "adapapter not working")
+            Log.e("DEBUG", "Adapter not working")
         }
     }
 
@@ -217,5 +261,11 @@ class MainActivity : AppCompatActivity() {
     {
         var myIntent = Intent(this, AddWordActivity::class.java);
         startActivityForResult(myIntent, ADD_WORD_CODE)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        saveUserStats()
+        Log.d("DEBUG", "Stats saved: Score=$score, Correct=$totalCorrect, Wrong=$totalWrong, Streak=$streak, LongestStreak=$longestStreak")
     }
 }

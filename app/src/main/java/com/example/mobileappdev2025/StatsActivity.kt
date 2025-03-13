@@ -30,6 +30,7 @@ class StatsActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.streak_text).text = "Current Streak: $streak"
         findViewById<TextView>(R.id.longest_streak_text).text = "Longest Streak: $longestStreak"
 
+
         // finish(); // used the pop the activity stack
     }
 }
